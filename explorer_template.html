@@ -1,0 +1,488 @@
+<title>EV Literature Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: control strip on top, a wrapping grid of five bar-chart panels (Theme widest), then the article list. */
+:root {
+  --bg: #f4f5f6;
+  --panel: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --ink-3: #85847f;
+  --rule: #e2e2dd;
+  --track: #eeeeea;
+  --accent: #2a78d6;
+  --accent-soft: #dce9fa;
+  --exclude: #c33a3a;
+  --exclude-soft: #f8dede;
+  --c-Theme: #e87ba4;
+  --c-Model: #eda100;
+  --c-Vehicle: #1baf7a;
+  --c-Country: #2a78d6;
+  --c-Context: #eb6834;
+  --tick: #0b0b0b;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --f-data: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141413; --panel: #1d1d1c; --ink: #ffffff; --ink-2: #c3c2b7; --ink-3: #8f8e86;
+    --rule: #34342f; --track: #2a2a27; --accent: #5598e7; --accent-soft: #1f3a5c;
+    --exclude: #e66767; --exclude-soft: #4a2323;
+    --c-Theme: #d55181; --c-Model: #c98500; --c-Vehicle: #199e70; --c-Country: #3987e5; --c-Context: #d95926;
+    --tick: #ffffff; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141413; --panel: #1d1d1c; --ink: #ffffff; --ink-2: #c3c2b7; --ink-3: #8f8e86;
+  --rule: #34342f; --track: #2a2a27; --accent: #5598e7; --accent-soft: #1f3a5c;
+  --exclude: #e66767; --exclude-soft: #4a2323;
+  --c-Theme: #d55181; --c-Model: #c98500; --c-Vehicle: #199e70; --c-Country: #3987e5; --c-Context: #d95926;
+  --tick: #ffffff; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.45; }
+.wrap { max-width: 1440px; margin: 0 auto; padding-inline: 20px; padding-block: 20px 48px; display: grid; gap: 18px; }
+h1, h2, h3 { font-family: var(--f-display); font-weight: 600; margin: 0; text-wrap: balance; }
+h1 { font-size: 26px; letter-spacing: -0.01em; }
+h2 { font-size: 17px; }
+.num { font-family: var(--f-data); font-variant-numeric: tabular-nums; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* header */
+.head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
+.head p { margin: 4px 0 0; color: var(--ink-2); max-width: 70ch; }
+.tally { display: flex; align-items: baseline; gap: 8px; }
+.tally .big { font-family: var(--f-data); font-size: 30px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.tally .of { color: var(--ink-2); }
+
+/* controls */
+.controls { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px;
+  display: grid; gap: 10px; }
+.ctl-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.ctl { display: flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 13px; }
+.ctl label { white-space: nowrap; }
+input[type="search"], select { font: inherit; font-size: 13px; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--rule); border-radius: 6px; padding: 5px 8px; }
+input[type="search"] { width: min(320px, 70vw); }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 4px 10px; font-size: 12.5px; cursor: pointer; color: var(--ink-2); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 26px; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 2px 4px 2px 10px; font-size: 12.5px;
+  border: 1px solid var(--rule); background: var(--bg); }
+.chip .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.chip.ex { background: var(--exclude-soft); border-color: var(--exclude); }
+.chip.ex .what { text-decoration: line-through; }
+.chip .x { border: 0; background: transparent; cursor: pointer; width: 20px; height: 20px; border-radius: 50%; color: var(--ink-2); line-height: 1; }
+.chip .x:hover { background: var(--rule); }
+.muted { color: var(--ink-3); font-size: 12.5px; }
+.linkbtn { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 2px 4px; font-size: 12.5px; text-decoration: underline; text-underline-offset: 2px; }
+.linkbtn[disabled] { color: var(--ink-3); cursor: default; text-decoration: none; }
+
+/* year strip */
+.years { display: grid; gap: 4px; }
+.yearbars { display: flex; align-items: flex-end; gap: 2px; height: 46px; }
+.yearbars div { flex: 1; min-width: 2px; position: relative; background: var(--track); border-radius: 2px 2px 0 0; }
+.yearbars span { position: absolute; left: 0; right: 0; bottom: 0; background: var(--accent); border-radius: 2px 2px 0 0; }
+.yearaxis { display: flex; justify-content: space-between; font-family: var(--f-data); font-size: 11px; color: var(--ink-3); }
+
+/* panels */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 14px; align-items: start; }
+.panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px 10px; min-width: 0; }
+.panel.wide { grid-column: 1 / -1; }
+.ph { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 8px; }
+.ph .sw { width: 10px; height: 10px; border-radius: 2px; }
+.ph .sub { color: var(--ink-3); font-size: 12px; }
+.ph .spacer { flex: 1; }
+.rows { display: grid; gap: 1px; }
+.panel.wide .rows { grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); column-gap: 28px; }
+.row { display: grid; grid-template-columns: minmax(120px, 210px) 1fr 92px; align-items: center; gap: 8px; min-height: 26px; }
+.lab { text-align: right; border: 1px solid transparent; background: transparent; border-radius: 5px; padding: 2px 7px;
+  cursor: pointer; font-size: 13px; color: var(--ink); line-height: 1.25; display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
+.lab:hover { background: var(--track); }
+.lab .mark { font-family: var(--f-data); font-size: 10.5px; font-weight: 500; letter-spacing: .04em; }
+.row.inc .lab { background: var(--accent-soft); border-color: var(--accent); font-weight: 600; }
+.row.exc .lab { background: var(--exclude-soft); border-color: var(--exclude); }
+.row.exc .lab .t { text-decoration: line-through; }
+.row.none .lab { color: var(--ink-2); font-style: italic; }
+.track { position: relative; height: 14px; background: var(--track); border-radius: 0 3px 3px 0; }
+.bar { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 0 3px 3px 0; min-width: 1px; transition: width .25s ease; }
+.row.dim .bar { opacity: .35; }
+.row.none .bar { background: var(--ink-3) !important; }
+.exp { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--tick); opacity: .55; border-radius: 1px; }
+.val { font-family: var(--f-data); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
+.val b { color: var(--ink); font-weight: 500; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--ink-3); font-size: 12px; margin-top: 8px; }
+.legend i { display: inline-block; vertical-align: middle; margin-right: 5px; }
+.legend .lb { width: 18px; height: 9px; background: var(--ink-3); border-radius: 0 2px 2px 0; }
+.legend .lt { width: 2px; height: 13px; background: var(--tick); opacity: .55; }
+@media (prefers-reduced-motion: reduce) { .bar { transition: none; } }
+
+/* tooltip */
+.tip { position: fixed; z-index: 10; pointer-events: none; background: var(--ink); color: var(--panel); border-radius: 6px;
+  padding: 7px 9px; font-size: 12px; line-height: 1.4; max-width: 280px; box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+.tip b { font-weight: 600; }
+
+/* articles */
+.list { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; min-width: 0; }
+.lh { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 6px; }
+.art { border-top: 1px solid var(--rule); padding: 9px 0; display: grid; gap: 3px; }
+.art a { color: var(--ink); text-decoration: none; font-weight: 500; }
+.art a:hover { text-decoration: underline; color: var(--accent); }
+.meta { color: var(--ink-2); font-size: 12.5px; }
+.cats { display: flex; flex-wrap: wrap; gap: 3px 12px; font-size: 12px; color: var(--ink-2); }
+.cats span { display: inline-flex; align-items: center; gap: 5px; }
+.cats .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.pager { display: flex; align-items: center; gap: 10px; justify-content: flex-end; padding-top: 8px; border-top: 1px solid var(--rule); }
+.pager button { border: 1px solid var(--rule); background: var(--bg); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.pager button[disabled] { opacity: .4; cursor: default; }
+.empty { padding: 24px 0; color: var(--ink-2); }
+.toast { color: var(--accent); font-size: 12.5px; }
+@media (max-width: 560px) {
+  .row { grid-template-columns: minmax(96px, 42%) 1fr 64px; }
+  .val .pct { display: none; }
+}
+</style>
+
+<div class="wrap">
+  <header class="head">
+    <div>
+      <h1>EV Literature Explorer</h1>
+      <p>Scopus records from the Moving Impact literature review, classified by keyword matching against the
+        Theme, Model, Vehicle, Country and Context sheets. Click a category name to filter by it; shift-click to exclude it.</p>
+    </div>
+    <div class="tally" aria-live="polite"><span class="big" id="nShown">0</span><span class="of">of <span class="num" id="nTotal">0</span> articles match</span></div>
+  </header>
+
+  <section class="controls" aria-label="Filters">
+    <div class="ctl-row">
+      <div class="ctl"><span>Clicking a label</span>
+        <span class="seg" role="group" aria-label="Click mode">
+          <button id="modeInc" aria-pressed="true">Includes</button><button id="modeExc" aria-pressed="false">Excludes</button>
+        </span></div>
+      <div class="ctl"><span>Bar order</span>
+        <span class="seg" role="group" aria-label="Bar order">
+          <button id="ordFixed" aria-pressed="true">All articles</button><button id="ordLive" aria-pressed="false">Filtered count</button>
+        </span></div>
+      <div class="ctl"><label for="q">Search titles &amp; sources</label><input type="search" id="q" placeholder="e.g. battery swapping"></div>
+      <div class="ctl"><input type="checkbox" id="modelOnly"><label for="modelOnly">Mentions model*</label></div>
+      <div class="ctl"><label for="y0">Years</label><select id="y0"></select><span>to</span><select id="y1"></select></div>
+    </div>
+    <div class="years">
+      <div class="yearbars" id="yearbars" aria-hidden="true"></div>
+      <div class="yearaxis"><span id="yaMin"></span><span class="muted">Articles per year: pale = all articles, blue = matching all filters</span><span id="yaMax"></span></div>
+    </div>
+    <div class="ctl-row">
+      <div class="chips" id="chips"></div>
+      <button class="linkbtn" id="clearAll">Clear all filters</button>
+    </div>
+  </section>
+
+  <div class="grid" id="grid"></div>
+
+  <section class="list" aria-labelledby="listTitle">
+    <div class="lh">
+      <h2 id="listTitle">Matching articles</h2>
+      <div class="ctl"><label for="sort">Sort by</label>
+        <select id="sort"><option value="cites">Most cited</option><option value="new">Newest</option><option value="old">Oldest</option><option value="title">Title A–Z</option></select></div>
+      <button class="linkbtn" id="copy">Copy list as table</button>
+      <span class="toast" id="toast" aria-live="polite"></span>
+    </div>
+    <div id="arts"></div>
+    <div class="pager"><button id="prev">Previous</button><span class="muted num" id="pageInfo"></span><button id="next">Next</button></div>
+  </section>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script type="application/json" id="data">/*__DATA__*/</script>
+<script>
+(() => {
+  const D = JSON.parse(document.getElementById("data").textContent);
+  const A = D.articles, N = A.length, DIMS = D.dims;
+  const K = DIMS.reduce((s, d) => s + d.cats.length, 0);
+  const F = { title: 0, year: 1, author: 2, source: 3, cites: 4, doi: 5, type: 6, model: 7, cats: 8 };
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  // ---------- precompute membership
+  const member = new Uint8Array(N * K);
+  const dimOf = new Int16Array(K);
+  DIMS.forEach((d, di) => d.cats.forEach((_, j) => (dimOf[d.start + j] = di)));
+  const dimCount = new Uint16Array(N * DIMS.length);
+  const hay = new Array(N);
+  A.forEach((a, i) => {
+    a[F.cats].forEach((k) => { member[i * K + k] = 1; dimCount[i * DIMS.length + dimOf[k]]++; });
+    hay[i] = (a[F.title] + " " + a[F.source] + " " + a[F.author]).toLowerCase();
+  });
+  const total = new Uint32Array(K), totalNone = new Uint32Array(DIMS.length);
+  for (let i = 0; i < N; i++) {
+    for (const k of A[i][F.cats]) total[k]++;
+    for (let d = 0; d < DIMS.length; d++) if (!dimCount[i * DIMS.length + d]) totalNone[d]++;
+  }
+  const years = A.map((a) => a[F.year]).filter((y) => y != null);
+  const yMin = Math.min(...years), yMax = Math.max(...years);
+
+  // ---------- state
+  // per dimension: inc / exc = Set of keys; key = category index, or "none"
+  const S = { inc: DIMS.map(() => new Set()), exc: DIMS.map(() => new Set()), all: DIMS.map(() => false),
+              mode: "inc", order: "fixed", q: "", model: false, y0: yMin, y1: yMax, sort: "cites", page: 0 };
+  const PAGE = 25;
+
+  function has(i, di, key) {
+    return key === "none" ? dimCount[i * DIMS.length + di] === 0 : member[i * K + key] === 1;
+  }
+  function passDim(i, di) {
+    const inc = S.inc[di], exc = S.exc[di];
+    for (const key of exc) if (has(i, di, key)) return false;
+    if (!inc.size) return true;
+    if (S.all[di]) { for (const key of inc) if (!has(i, di, key)) return false; return true; }
+    for (const key of inc) if (has(i, di, key)) return true;
+    return false;
+  }
+  function passBase(i) {
+    const a = A[i];
+    if (a[F.year] != null && (a[F.year] < S.y0 || a[F.year] > S.y1)) return false;
+    if (S.model && !a[F.model]) return false;
+    if (S.q && !hay[i].includes(S.q)) return false;
+    return true;
+  }
+
+  // ---------- compute: one pass; each panel ignores its own filter (cross-filtering)
+  function compute() {
+    const nd = DIMS.length;
+    const cnt = new Uint32Array(K), none = new Uint32Array(nd), base = new Uint32Array(nd);
+    const match = [];
+    const yearHist = new Map();
+    const active = DIMS.map((_, di) => S.inc[di].size > 0 || S.exc[di].size > 0);
+    for (let i = 0; i < N; i++) {
+      if (!passBase(i)) continue;
+      let fails = 0, failDim = -1;
+      for (let di = 0; di < nd; di++) {
+        if (active[di] && !passDim(i, di)) { fails++; failDim = di; if (fails > 1) break; }
+      }
+      if (fails > 1) continue;
+      const cats = A[i][F.cats];
+      if (fails === 0) {
+        match.push(i);
+        const y = A[i][F.year]; yearHist.set(y, (yearHist.get(y) || 0) + 1);
+        for (let di = 0; di < nd; di++) { base[di]++; if (!dimCount[i * nd + di]) none[di]++; }
+        for (const k of cats) cnt[k]++;
+      } else {
+        base[failDim]++;
+        if (!dimCount[i * nd + failDim]) none[failDim]++;
+        for (const k of cats) if (dimOf[k] === failDim) cnt[k]++;
+      }
+    }
+    return { cnt, none, base, match, yearHist };
+  }
+
+  // ---------- panels
+  const grid = $("grid");
+  const panels = DIMS.map((d, di) => {
+    const el = document.createElement("section");
+    el.className = "panel" + (d.cats.length > 16 ? " wide" : "");
+    el.setAttribute("aria-label", d.name);
+    el.innerHTML = `<div class="ph"><span class="sw" style="background:var(--c-${d.name})"></span><h2>${esc(d.name)}</h2>
+      <span class="sub num" data-sub></span><span class="spacer"></span>
+      <span class="seg" role="group" aria-label="${esc(d.name)} match rule" title="How several selected ${esc(d.name)} categories combine">
+        <button data-any aria-pressed="true">Any</button><button data-all aria-pressed="false">All</button></span>
+      <button class="linkbtn" data-clear>Clear</button></div><div class="rows" data-rows></div>`;
+    grid.appendChild(el);
+    el.querySelector("[data-any]").onclick = () => { S.all[di] = false; S.page = 0; render(); };
+    el.querySelector("[data-all]").onclick = () => { S.all[di] = true; S.page = 0; render(); };
+    el.querySelector("[data-clear]").onclick = () => { S.inc[di].clear(); S.exc[di].clear(); S.page = 0; render(); };
+    return el;
+  });
+  const legend = document.createElement("div");
+  legend.className = "legend panel wide";
+  legend.innerHTML = `<span><i class="lb"></i>Articles in the category that match the filters set in the <em>other</em> panels, year, search and model* settings</span>
+    <span><i class="lt"></i>Count expected if the category were unrelated to those filters (the category's share of all articles × the number of articles matching those filters)</span>`;
+  grid.appendChild(legend);
+
+  function toggle(di, key, exclude) {
+    const a = exclude ? S.exc[di] : S.inc[di], b = exclude ? S.inc[di] : S.exc[di];
+    b.delete(key);
+    a.has(key) ? a.delete(key) : a.add(key);
+    S.page = 0;
+    render();
+  }
+
+  function renderPanels(r) {
+    DIMS.forEach((d, di) => {
+      const el = panels[di];
+      const items = d.cats.map((name, j) => ({ key: d.start + j, name, c: r.cnt[d.start + j], t: total[d.start + j] }));
+      if (S.order === "live") items.sort((x, y) => y.c - x.c || y.t - x.t); else items.sort((x, y) => y.t - x.t);
+      items.push({ key: "none", name: "No match", c: r.none[di], t: totalNone[di] });
+      const n = r.base[di];
+      const max = Math.max(1, ...items.map((x) => Math.max(x.c, (x.t / N) * n)));
+      const anySel = S.inc[di].size > 0;
+      el.querySelector("[data-sub]").textContent = `${n.toLocaleString()} articles in view`;
+      el.querySelector("[data-any]").setAttribute("aria-pressed", String(!S.all[di]));
+      el.querySelector("[data-all]").setAttribute("aria-pressed", String(S.all[di]));
+      el.querySelector("[data-clear]").disabled = !(S.inc[di].size || S.exc[di].size);
+      const rows = el.querySelector("[data-rows]");
+      rows.innerHTML = items.map((x) => {
+        const inc = S.inc[di].has(x.key), exc = S.exc[di].has(x.key);
+        const exp = (x.t / N) * n;
+        const cls = ["row", inc ? "inc" : "", exc ? "exc" : "", anySel && !inc ? "dim" : "", x.key === "none" ? "none" : ""].join(" ");
+        const pct = n ? (100 * x.c / n) : 0;
+        const mark = inc ? `<span class="mark" style="color:var(--accent)">IN</span>` : exc ? `<span class="mark" style="color:var(--exclude)">NOT</span>` : "";
+        return `<div class="${cls}" data-key="${x.key}" data-c="${x.c}" data-t="${x.t}" data-n="${n}" data-name="${esc(x.name)}">
+          <button class="lab" aria-pressed="${inc || exc}" title="Click to include, shift-click to exclude">${mark}<span class="t">${esc(x.name)}</span></button>
+          <div class="track"><div class="bar" style="width:${(100 * x.c / max).toFixed(2)}%;background:var(--c-${d.name})"></div>
+            ${n ? `<div class="exp" style="left:${(100 * exp / max).toFixed(2)}%"></div>` : ""}</div>
+          <div class="val"><b>${x.c.toLocaleString()}</b> <span class="pct">${pct.toFixed(pct < 10 ? 1 : 0)}%</span></div></div>`;
+      }).join("");
+    });
+  }
+
+  // label clicks + tooltips (delegated)
+  grid.addEventListener("click", (e) => {
+    const lab = e.target.closest(".lab"); if (!lab) return;
+    const row = lab.closest(".row"), di = panels.indexOf(row.closest(".panel"));
+    const raw = row.dataset.key, key = raw === "none" ? "none" : +raw;
+    toggle(di, key, e.shiftKey || S.mode === "exc");
+  });
+  const tip = $("tip");
+  grid.addEventListener("mousemove", (e) => {
+    const row = e.target.closest(".row");
+    if (!row) { tip.hidden = true; return; }
+    const c = +row.dataset.c, t = +row.dataset.t, n = +row.dataset.n;
+    const exp = (t / N) * n, lift = exp ? c / exp : 0;
+    tip.innerHTML = `<b>${row.dataset.name}</b><br>${c.toLocaleString()} of ${n.toLocaleString()} articles in view (${n ? (100 * c / n).toFixed(1) : 0}%)<br>
+      All articles: ${t.toLocaleString()} (${(100 * t / N).toFixed(1)}%)<br>${n && exp >= 1 ? `Ratio to expected: <b>${lift.toFixed(2)}×</b>` : "Too few articles for a ratio"}`;
+    tip.hidden = false;
+    const x = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+    const y = e.clientY + 16 + tip.offsetHeight > window.innerHeight ? e.clientY - tip.offsetHeight - 10 : e.clientY + 16;
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+  });
+  grid.addEventListener("mouseleave", () => (tip.hidden = true));
+
+  // ---------- chips
+  function renderChips() {
+    const out = [];
+    DIMS.forEach((d, di) => {
+      const name = (k) => (k === "none" ? `No ${d.name} match` : d.cats[k - d.start]);
+      const inc = [...S.inc[di]];
+      if (inc.length) out.push(...inc.map((k) => chip(d, di, k, name(k), false, inc.length > 1 ? (S.all[di] ? "all of" : "any of") : "")));
+      out.push(...[...S.exc[di]].map((k) => chip(d, di, k, name(k), true, "")));
+    });
+    if (S.model) out.push(`<span class="chip"><span class="what">Mentions model*</span><button class="x" data-model aria-label="Remove model* filter">×</button></span>`);
+    if (S.q) out.push(`<span class="chip"><span class="what">Search: “${esc(S.q)}”</span><button class="x" data-q aria-label="Clear search">×</button></span>`);
+    if (S.y0 !== yMin || S.y1 !== yMax) out.push(`<span class="chip"><span class="what">${S.y0}–${S.y1}</span><button class="x" data-years aria-label="Reset years">×</button></span>`);
+    $("chips").innerHTML = out.length ? out.join("") : `<span class="muted">No filters set. Showing every article.</span>`;
+    $("clearAll").disabled = !out.length;
+  }
+  function chip(d, di, k, name, ex, rule) {
+    return `<span class="chip${ex ? " ex" : ""}"><span class="dot" style="background:var(--c-${d.name})"></span>
+      <span class="what">${esc(d.name)}${rule ? ` (${rule})` : ""}: ${ex ? "not " : ""}${esc(name)}</span>
+      <button class="x" data-di="${di}" data-k="${k}" data-ex="${ex ? 1 : 0}" aria-label="Remove filter ${esc(name)}">×</button></span>`;
+  }
+  $("chips").addEventListener("click", (e) => {
+    const b = e.target.closest(".x"); if (!b) return;
+    if (b.dataset.model != null) { S.model = false; $("modelOnly").checked = false; }
+    else if (b.dataset.q != null) { S.q = ""; $("q").value = ""; }
+    else if (b.dataset.years != null) { S.y0 = yMin; S.y1 = yMax; $("y0").value = yMin; $("y1").value = yMax; }
+    else { const di = +b.dataset.di, k = b.dataset.k === "none" ? "none" : +b.dataset.k; (b.dataset.ex === "1" ? S.exc : S.inc)[di].delete(k); }
+    S.page = 0; render();
+  });
+  $("clearAll").onclick = () => {
+    S.inc.forEach((s) => s.clear()); S.exc.forEach((s) => s.clear());
+    S.model = false; S.q = ""; S.y0 = yMin; S.y1 = yMax;
+    $("modelOnly").checked = false; $("q").value = ""; $("y0").value = yMin; $("y1").value = yMax;
+    S.page = 0; render();
+  };
+
+  // ---------- years
+  const yearOpts = []; for (let y = yMin; y <= yMax; y++) yearOpts.push(`<option value="${y}">${y}</option>`);
+  $("y0").innerHTML = yearOpts.join(""); $("y1").innerHTML = yearOpts.join("");
+  $("y0").value = yMin; $("y1").value = yMax;
+  $("yaMin").textContent = yMin; $("yaMax").textContent = yMax;
+  const allYears = new Map(); years.forEach((y) => allYears.set(y, (allYears.get(y) || 0) + 1));
+  const yPeak = Math.max(...allYears.values());
+  function renderYears(r) {
+    let html = "";
+    for (let y = yMin; y <= yMax; y++) {
+      const all = allYears.get(y) || 0, m = r.yearHist.get(y) || 0;
+      html += `<div style="height:${(100 * all / yPeak).toFixed(1)}%" title="${y}: ${m.toLocaleString()} matching of ${all.toLocaleString()}"><span style="height:${all ? (100 * m / all).toFixed(1) : 0}%"></span></div>`;
+    }
+    $("yearbars").innerHTML = html;
+  }
+  $("y0").onchange = () => { S.y0 = +$("y0").value; if (S.y0 > S.y1) { S.y1 = S.y0; $("y1").value = S.y1; } S.page = 0; render(); };
+  $("y1").onchange = () => { S.y1 = +$("y1").value; if (S.y1 < S.y0) { S.y0 = S.y1; $("y0").value = S.y0; } S.page = 0; render(); };
+
+  // ---------- other controls
+  let qTimer;
+  $("q").addEventListener("input", () => { clearTimeout(qTimer); qTimer = setTimeout(() => { S.q = $("q").value.trim().toLowerCase(); S.page = 0; render(); }, 180); });
+  $("modelOnly").onchange = () => { S.model = $("modelOnly").checked; S.page = 0; render(); };
+  const setSeg = (a, b, on) => { $(a).setAttribute("aria-pressed", String(on)); $(b).setAttribute("aria-pressed", String(!on)); };
+  $("modeInc").onclick = () => { S.mode = "inc"; setSeg("modeInc", "modeExc", true); };
+  $("modeExc").onclick = () => { S.mode = "exc"; setSeg("modeInc", "modeExc", false); };
+  $("ordFixed").onclick = () => { S.order = "fixed"; setSeg("ordFixed", "ordLive", true); render(); };
+  $("ordLive").onclick = () => { S.order = "live"; setSeg("ordFixed", "ordLive", false); render(); };
+  $("sort").onchange = () => { S.sort = $("sort").value; S.page = 0; render(); };
+  $("prev").onclick = () => { S.page--; renderList(lastMatch); };
+  $("next").onclick = () => { S.page++; renderList(lastMatch); };
+
+  // ---------- article list
+  let lastMatch = [];
+  function sorted(match) {
+    const m = match.slice();
+    const by = { cites: (a, b) => A[b][F.cites] - A[a][F.cites], new: (a, b) => (A[b][F.year] || 0) - (A[a][F.year] || 0) || A[b][F.cites] - A[a][F.cites],
+                 old: (a, b) => (A[a][F.year] || 0) - (A[b][F.year] || 0), title: (a, b) => A[a][F.title].localeCompare(A[b][F.title]) }[S.sort];
+    return m.sort(by);
+  }
+  function catLine(i) {
+    const byDim = DIMS.map(() => []);
+    for (const k of A[i][F.cats]) byDim[dimOf[k]].push(DIMS[dimOf[k]].cats[k - DIMS[dimOf[k]].start]);
+    return byDim.map((l, di) => l.length ? `<span><span class="dot" style="background:var(--c-${DIMS[di].name})"></span>${esc(DIMS[di].name)}: ${esc(l.join(", "))}</span>` : "").join("");
+  }
+  function renderList(match) {
+    lastMatch = match;
+    const pages = Math.max(1, Math.ceil(match.length / PAGE));
+    S.page = Math.max(0, Math.min(S.page, pages - 1));
+    const slice = match.slice(S.page * PAGE, (S.page + 1) * PAGE);
+    $("arts").innerHTML = slice.length ? slice.map((i) => {
+      const a = A[i];
+      const t = esc(a[F.title] || "(untitled)");
+      const title = a[F.doi] ? `<a href="https://doi.org/${encodeURI(a[F.doi])}" target="_blank" rel="noopener">${t}</a>` : `<span>${t}</span>`;
+      return `<article class="art">${title}
+        <div class="meta">${esc(a[F.author])}${a[F.author] ? " · " : ""}<span class="num">${a[F.year] ?? ""}</span> · ${esc(a[F.source])} · <span class="num">${a[F.cites].toLocaleString()}</span> citations · ${esc(a[F.type])}</div>
+        <div class="cats">${catLine(i)}</div></article>`;
+    }).join("") : `<p class="empty">No articles match these filters. Remove a filter above to widen the view.</p>`;
+    $("pageInfo").textContent = match.length ? `${(S.page * PAGE + 1).toLocaleString()}–${Math.min((S.page + 1) * PAGE, match.length).toLocaleString()} of ${match.length.toLocaleString()}` : "";
+    $("prev").disabled = S.page === 0; $("next").disabled = S.page >= pages - 1;
+  }
+
+  $("copy").onclick = () => {
+    const head = ["Title", "Year", "First author", "Source", "Citations", "DOI", "Document type"].concat(DIMS.map((d) => d.name));
+    const lines = [head.join("\t")].concat(lastMatch.map((i) => {
+      const a = A[i];
+      const per = DIMS.map((d, di) => a[F.cats].filter((k) => dimOf[k] === di).map((k) => d.cats[k - d.start]).join("; "));
+      return [a[F.title], a[F.year] ?? "", a[F.author], a[F.source], a[F.cites], a[F.doi], a[F.type]].concat(per)
+        .map((v) => String(v).replace(/[\t\n\r]+/g, " ")).join("\t");
+    }));
+    const text = lines.join("\n");
+    const done = (msg) => { $("toast").textContent = msg; setTimeout(() => ($("toast").textContent = ""), 3500); };
+    try {
+      navigator.clipboard.writeText(text).then(
+        () => done(`Copied ${lastMatch.length.toLocaleString()} rows. Paste into Excel.`),
+        () => done("Copying is blocked here. Select rows from the list instead."));
+    } catch (e) { done("Copying is blocked here. Select rows from the list instead."); }
+  };
+
+  // ---------- render
+  function render() {
+    const r = compute();
+    $("nShown").textContent = r.match.length.toLocaleString();
+    renderPanels(r); renderChips(); renderYears(r);
+    renderList(sorted(r.match));
+  }
+  $("nTotal").textContent = N.toLocaleString();
+  render();
+})();
+</script>
